@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>티켓팅 실전 연습</title>
+  
+  <!-- React, ReactDOM, Babel, Tailwind CSS를 CDN으로 바로 불러옵니다 -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <!-- React 앱이 그려질 도화지 -->
+  <div id="root"></div>
+
+  <!-- 여기서부터 우리가 만든 React 코드입니다 (Babel이 실시간으로 번역해줌) -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function TicketingPractice() {
+      const [isCountdown, setIsCountdown] = useState(true);
+      const [timeLeft, setTimeLeft] = useState(5);
+      const [selectedDate, setSelectedDate] = useState(8);
+      const [startTime, setStartTime] = useState(null);
+      const [records, setRecords] = useState({ day8: [], day9: [] });
+      const [bestRecords, setBestRecords] = useState({ day8: null, day9: null });
+
+      useEffect(() => {
+        if (!isCountdown) return;
+
+        if (timeLeft > 0) {
+          const timerId = setInterval(() => {
+            setTimeLeft((prev) => prev - 1);
+          }, 1000);
+          return () => clearInterval(timerId);
+        } else if (timeLeft === 0) {
+          const randomDelay = Math.random() * 1500;
+          const timeoutId = setTimeout(() => {
+            setIsCountdown(false);
+            setStartTime(Date.now());
+          }, randomDelay);
+          return () => clearTimeout(timeoutId);
+        }
+      }, [isCountdown, timeLeft]);
+
+      const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const s = (seconds % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+      };
+
+      const formatRecord = (ms) => {
+        return (ms / 1000).toFixed(3) + '초';
+      };
+
+      const handleBookingClick = () => {
+        if (isCountdown) return;
+
+        const reactionTime = Date.now() - startTime;
+        const dateKey = selectedDate === 8 ? 'day8' : 'day9';
+
+        setRecords((prev) => {
+          const currentList = prev[dateKey];
+          const nextRound = currentList.length > 0 ? currentList[0].round + 1 : 1;
+          const newRecord = { time: reactionTime, round: nextRound };
+          
+          const newRecords = [newRecord, ...currentList].slice(0, 10);
+          return { ...prev, [dateKey]: newRecords };
+        });
+
+        setBestRecords((prev) => {
+          const currentBest = prev[dateKey];
+          if (currentBest === null || reactionTime < currentBest) {
+            return { ...prev, [dateKey]: reactionTime };
+          }
+          return prev;
+        });
+
+        setStartTime(null); 
+      };
+
+      const handleRestart = () => {
+        setIsCountdown(true);
+        setTimeLeft(5);
+        setSelectedDate(8);
+        setStartTime(null);
+      };
+
+      const daysOfWeek = ['일', '월', '화', '수', '목', '금', '토'];
+      const calendarBlanks = Array(6).fill(null);
+      const calendarDays = Array.from({ length: 31 }, (_, i) => i + 1);
+      const fullCalendar = [...calendarBlanks, ...calendarDays];
+
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center py-6 font-sans">
+          <h1 className="text-2xl font-bold text-gray-800 mb-6">티켓팅 실전 연습</h1>
+          
+          <div className="flex flex-col lg:flex-row gap-6 w-full max-w-4xl px-4 items-start justify-center">
+            
+            <div className="w-[320px] flex-shrink-0 flex flex-col gap-3 mx-auto lg:mx-0">
+              {isCountdown ? (
+                <div className="flex flex-col gap-3 w-full">
+                  <div className="border border-gray-300 rounded-xl p-5 bg-white shadow-sm flex flex-col items-center justify-center min-h-[180px]">
+                    <h2 className="text-sm font-bold text-gray-800 mb-4">티켓오픈안내</h2>
+                    <div className="flex items-center justify-center mb-4">
+                      <span className="text-red-500 text-3xl font-light mr-3">D-day</span>
+                      <div className="flex flex-col">
+                        <span className="text-gray-800 font-bold text-base">티켓오픈</span>
+                        <span className="text-gray-500 text-xs">2026.04.16 19:00</span>
+                      </div>
+                    </div>
+                    <p className="text-gray-500 text-xs">티켓 오픈 시간은 예고없이 변경될 수 있습니다.</p>
+                  </div>
+
+                  <div>
+                    <button disabled className="w-full bg-[#cecece] text-white text-lg font-bold py-3 rounded-lg cursor-not-allowed flex items-center justify-center gap-1.5">
+                      남은시간 {formatTime(timeLeft)}
+                    </button>
+                    <div className="text-right mt-1.5 text-[11px] text-gray-500">
+                      기록 전체 초기화는 페이지 새로고침 {'>'}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col w-full">
+                  <div className="border border-gray-300 rounded-xl bg-white shadow-sm overflow-hidden mb-3">
+                    <div className="p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-bold text-gray-800 text-sm">관람일</h3>
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+                      </div>
+                      
+                      <div className="flex items-center justify-center gap-3 mb-4">
+                        <span className="text-gray-300 cursor-pointer text-xs">&lt;</span>
+                        <span className="font-bold text-sm">2026. 08</span>
+                        <span className="text-gray-300 cursor-pointer text-xs">&gt;</span>
+                      </div>
+
+                      <div className="grid grid-cols-7 text-center gap-y-2 text-xs">
+                        {daysOfWeek.map(day => (
+                          <div key={day} className="text-gray-500">{day}</div>
+                        ))}
+                        {fullCalendar.map((day, index) => {
+                          if (!day) return <div key={`blank-${index}`}></div>;
+                          const isTargetDate = day === 8 || day === 9;
+                          const isSelected = selectedDate === day;
+                          let className = "w-6 h-6 flex items-center justify-center mx-auto rounded-full text-xs ";
+                          
+                          if (isSelected) className += "bg-[#4B4DF2] text-white font-bold cursor-pointer";
+                          else if (isTargetDate) className += "text-gray-800 hover:bg-gray-100 cursor-pointer font-bold";
+                          else className += index % 7 === 0 ? "text-red-400 opacity-50" : "text-gray-300";
+
+                          return (
+                            <div key={day} className={className} onClick={() => isTargetDate && setSelectedDate(day)}>
+                              {day}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-200 p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-bold text-gray-800 text-sm">회차</h3>
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+                      </div>
+                      
+                      <div className="border border-[#4B4DF2] text-[#4B4DF2] rounded-md p-2 inline-block font-bold text-xs mb-3">
+                        1회 17:00
+                      </div>
+                      
+                      <div className="text-[10px] text-gray-600">
+                        스탠딩 R <span className="font-bold text-gray-800">1000</span> / 스탠딩 S <span className="font-bold text-gray-800">1000</span> / 지정석 <span className="font-bold text-gray-800">5000</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={handleBookingClick}
+                    disabled={startTime === null}
+                    className={`w-full text-white text-base font-bold py-3 rounded-lg mb-2 transition-colors ${startTime !== null ? 'bg-[#4B4DF2] hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'}`}
+                  >
+                    {startTime !== null ? '예매하기' : '기록 저장됨'}
+                  </button>
+                  <button className="w-full border border-[#4B4DF2] text-[#4B4DF2] text-sm font-bold py-3 rounded-lg bg-white hover:bg-blue-50">
+                    BOOKING / 外國語
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="w-[340px] flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col h-[540px] mx-auto lg:mx-0">
+              <h2 className="text-base font-bold text-gray-800 border-b pb-3 mb-3 text-center">나의 티켓팅 반응속도 기록</h2>
+              
+              <div className="flex flex-row gap-2 flex-grow overflow-hidden">
+                <div className="flex-1 border-r border-gray-100 pr-2 flex flex-col">
+                  <h3 className="text-center font-bold text-[#4B4DF2] mb-2 bg-blue-50 py-1 rounded text-xs">8월 8일 선택</h3>
+                  <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md text-center shrink-0">
+                    <span className="text-[10px] text-gray-500 block">최고 기록 👑</span>
+                    <span className="font-bold text-sm text-yellow-600">
+                      {bestRecords.day8 !== null ? formatRecord(bestRecords.day8) : '-'}
+                    </span>
+                  </div>
+                  <ul className="space-y-1.5 text-xs text-gray-600 overflow-y-auto flex-grow pb-2">
+                    {records.day8.length === 0 ? (
+                      <li className="text-center text-gray-400 mt-6">기록이 없습니다.</li>
+                    ) : (
+                      records.day8.map((rec) => (
+                        <li key={rec.round} className="flex justify-between border-b border-gray-50 pb-1">
+                          <span>{rec.round}회차</span>
+                          <span className="font-mono font-medium">{formatRecord(rec.time)}</span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+
+                <div className="flex-1 pl-1 flex flex-col">
+                  <h3 className="text-center font-bold text-purple-600 mb-2 bg-purple-50 py-1 rounded text-xs">8월 9일 선택</h3>
+                  <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md text-center shrink-0">
+                    <span className="text-[10px] text-gray-500 block">최고 기록 👑</span>
+                    <span className="font-bold text-sm text-yellow-600">
+                      {bestRecords.day9 !== null ? formatRecord(bestRecords.day9) : '-'}
+                    </span>
+                  </div>
+                  <ul className="space-y-1.5 text-xs text-gray-600 overflow-y-auto flex-grow pb-2">
+                    {records.day9.length === 0 ? (
+                      <li className="text-center text-gray-400 mt-6">기록이 없습니다.</li>
+                    ) : (
+                      records.day9.map((rec) => (
+                        <li key={rec.round} className="flex justify-between border-b border-gray-50 pb-1">
+                          <span>{rec.round}회차</span>
+                          <span className="font-mono font-medium">{formatRecord(rec.time)}</span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              </div>
+
+              <button onClick={handleRestart} className="mt-4 w-full bg-gray-800 text-white font-bold py-2.5 rounded-lg hover:bg-gray-900 transition-colors flex items-center justify-center gap-1.5 text-sm shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                다시 시작 (5초)
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<TicketingPractice />);
+  </script>
+</body>
+</html>
