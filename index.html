@@ -11,7 +11,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="select-none"> <!-- body에도 텍스트 선택 방지 추가 -->
   <!-- React 앱이 그려질 도화지 -->
   <div id="root"></div>
 
@@ -26,6 +26,9 @@
       const [startTime, setStartTime] = useState(null);
       const [records, setRecords] = useState({ day8: [], day9: [] });
       const [bestRecords, setBestRecords] = useState({ day8: null, day9: null });
+      
+      // 경고창 애니메이션을 위한 상태 (랜덤 숫자를 넣어 클릭마다 새로운 애니메이션 유발)
+      const [warning, setWarning] = useState(null); 
 
       useEffect(() => {
         if (!isCountdown) return;
@@ -88,20 +91,59 @@
         setStartTime(null);
       };
 
+      // 꼼수(배경 클릭, 비활성화 구역 연타) 방지 페널티 함수
+      const handlePenalty = (e) => {
+        if (e) e.stopPropagation(); // 이벤트 버블링 방지
+        setWarning(Math.random()); // 상태를 변경해 경고창 애니메이션 갱신
+        handleRestart(); // 카운트다운 5초로 초기화
+      };
+
       const daysOfWeek = ['일', '월', '화', '수', '목', '금', '토'];
       const calendarBlanks = Array(6).fill(null);
       const calendarDays = Array.from({ length: 31 }, (_, i) => i + 1);
       const fullCalendar = [...calendarBlanks, ...calendarDays];
 
       return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center py-6 font-sans">
-          <h1 className="text-2xl font-bold text-gray-800 mb-6">티켓팅 실전 연습</h1>
+        // 바탕화면 전체에 페널티 클릭 이벤트를 걸어둡니다. (Tailwind select-none 추가)
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center py-6 font-sans relative overflow-hidden select-none" onClick={handlePenalty}>
+          
+          {/* 경고창 전용 CSS 애니메이션 */}
+          <style>
+            {`
+              @keyframes warningPopup {
+                0% { opacity: 0; transform: translate(-50%, calc(-50% + 30px)); }
+                10% { opacity: 0.8; transform: translate(-50%, -50%); }
+                80% { opacity: 0.8; transform: translate(-50%, -50%); }
+                100% { opacity: 0; transform: translate(-50%, -50%); }
+              }
+            `}
+          </style>
+
+          {/* 꼼수 적발 시 나타나는 페널티 경고창 UI */}
+          {warning && (
+            <div 
+              key={warning} // key가 바뀔 때마다 React가 이 요소를 새로 그려서 CSS 애니메이션이 재시작됩니다.
+              className="fixed top-1/2 left-1/2 bg-[#ff8a8a] text-white px-8 py-4 rounded-2xl shadow-xl z-50 font-bold text-lg tracking-wide whitespace-nowrap pointer-events-none text-center"
+              style={{
+                // 애니메이션 지속 시간을 3초에서 2초로 단축했습니다.
+                animation: 'warningPopup 2s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            >
+              버튼을 클릭하셔야 합니다.<br />
+              <span className="text-sm font-medium opacity-90 block mt-1">(다시 시작됩니다)</span>
+            </div>
+          )}
+
+          {/* 제목을 클릭했을 땐 페널티가 먹지 않도록 이벤트 전파 차단 */}
+          <h1 className="text-2xl font-bold text-gray-800 mb-6" onClick={(e) => e.stopPropagation()}>티켓팅 실전 연습</h1>
           
           <div className="flex flex-col lg:flex-row gap-6 w-full max-w-4xl px-4 items-start justify-center">
             
-            <div className="w-[320px] flex-shrink-0 flex flex-col gap-3 mx-auto lg:mx-0">
+            {/* 왼쪽 UI 구역 (이 구역 안쪽의 유효한 클릭은 페널티 제외) */}
+            <div className="w-[320px] flex-shrink-0 flex flex-col gap-3 mx-auto lg:mx-0" onClick={(e) => e.stopPropagation()}>
               {isCountdown ? (
-                <div className="flex flex-col gap-3 w-full">
+                // 카운트다운 상태일 때는 왼쪽 UI 어디를 누르든 페널티 부여
+                <div className="flex flex-col gap-3 w-full" onClick={handlePenalty}>
                   <div className="border border-gray-300 rounded-xl p-5 bg-white shadow-sm flex flex-col items-center justify-center min-h-[180px]">
                     <h2 className="text-sm font-bold text-gray-800 mb-4">티켓오픈안내</h2>
                     <div className="flex items-center justify-center mb-4">
@@ -115,7 +157,11 @@
                   </div>
 
                   <div>
-                    <button disabled className="w-full bg-[#cecece] text-white text-lg font-bold py-3 rounded-lg cursor-not-allowed flex items-center justify-center gap-1.5">
+                    {/* disabled 속성을 빼고 클릭 이벤트를 추가하여 연타 페널티가 작동하게 변경 */}
+                    <button 
+                      onClick={handlePenalty} 
+                      className="w-full bg-[#cecece] text-white text-lg font-bold py-3 rounded-lg cursor-not-allowed flex items-center justify-center gap-1.5"
+                    >
                       남은시간 {formatTime(timeLeft)}
                     </button>
                     <div className="text-right mt-1.5 text-[11px] text-gray-500">
@@ -191,7 +237,8 @@
               )}
             </div>
 
-            <div className="w-[340px] flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col h-[540px] mx-auto lg:mx-0">
+            {/* 오른쪽 기록 구역 (이 구역 안쪽의 유효한 클릭은 페널티 제외) */}
+            <div className="w-[340px] flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col h-[540px] mx-auto lg:mx-0" onClick={(e) => e.stopPropagation()}>
               <h2 className="text-base font-bold text-gray-800 border-b pb-3 mb-3 text-center">나의 티켓팅 반응속도 기록</h2>
               
               <div className="flex flex-row gap-2 flex-grow overflow-hidden">
